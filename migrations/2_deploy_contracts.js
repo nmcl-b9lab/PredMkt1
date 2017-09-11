@@ -2,6 +2,7 @@ var QuestionLib = artifacts.require("./QuestionLib.sol");
 var Owned = artifacts.require("./Owned.sol");
 var PausableByOwner = artifacts.require("./PausableByOwner.sol");
 var PredictionMarketQuestionBase = artifacts.require("./PredictionMarketQuestionBase.sol");
+var PredictionMarketHub = artifacts.require("./PredictionMarketHub.sol");
 
 module.exports = function(deployer) {
   deployer.deploy(Owned);
@@ -10,4 +11,7 @@ module.exports = function(deployer) {
   deployer.deploy(QuestionLib);
   //deployer.link(QuestionLib, PredictionMarketQuestionBase);
   deployer.deploy(PredictionMarketQuestionBase); 
+
+  deployer.deploy(PredictionMarketHub);
+  
 };

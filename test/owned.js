@@ -21,8 +21,12 @@ contract('Owned', function(accounts) {
     return Owned.deployed().then(function(instance) {
       return instance.changeOwner(accounts[1], {from: accounts[0]});
     }).then(function(trx) {
-      console.log(JSON.stringify(trx, null, 2));
-      assert.isTrue(trx, "owner change should be successful");
+      //console.log(JSON.stringify(trx, null, 2));
+      return Owned.deployed().then(function(instance) {
+        return instance.owner.call({from: accounts[1]});
+        }).then(function(owner) {
+        assert.equal(owner, accounts[1], "accounts[1] wasn't in the second account");
+      })
     });
   });
 

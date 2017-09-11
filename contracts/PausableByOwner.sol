@@ -9,18 +9,22 @@ contract PausableByOwner is Owned() {
 
     function pause(string reason)
         onlyOwner
+        returns(bool success)
     {
         require(!paused);
         paused = true;
         LogPause(reason);
+        return true;
     }
 
     function unpause(string reason)
         onlyOwner
+        returns(bool success)
     {
         require(paused);
         paused = false;
         LogUnpause(reason);
+        return true;
     }
 
     modifier notWhilePaused()
