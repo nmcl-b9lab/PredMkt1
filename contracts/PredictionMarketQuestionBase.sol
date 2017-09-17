@@ -36,21 +36,19 @@ contract PredictionMarketQuestionBase is PausableByOwner() {
     uint    public payoutMultiplierInBasisPoints;
     uint    public totalCollectedWei;
 
-    // CONSTANTS (for now). TODO: make configurable
+    // CONSTANTS that should be configurable. TODO: make configurable
     uint    public constant BASIS_POINTS_SPONSOR_COMMISSION   = 60; // 0.6%. 
     uint    public constant BASIS_POINTS_OWNER_COMMISSION     = 40; // 0.4%.
-    uint    public constant MIN_STAKE_IN_WEI                  = 1000000000000000;
+    uint    public constant MIN_STAKE_IN_WEI                  = 1; // TODO: raise and mock or make configurable for testing
     // All funds left in the contract can be claimed by the sponsor one year after resolution
     // TODO: how to mock this for testing?
     uint    public constant SECONDS_PER_YEAR                  = 60 * 60 * 24 * 365;
 
-    // Constants.
+    // CONSTANTS
     uint    public constant ONE_HUNDRED_PERCENT_IN_BASIS_POINTS= 100 * 100;
     uint    public constant COMMISSION_ADJUSTED_PAYOUT_MULTIPLIER_IN_BASIS_POINTS =
                                 ONE_HUNDRED_PERCENT_IN_BASIS_POINTS
                                 - (BASIS_POINTS_SPONSOR_COMMISSION + BASIS_POINTS_OWNER_COMMISSION);
-
-
 
     // Extend with care. Mapping of predictions assumes that these enum values all fit into uint8.
     // Also, extending the logic to allow an arbitrary number of outcomes requires significant rework,
@@ -97,8 +95,6 @@ contract PredictionMarketQuestionBase is PausableByOwner() {
                             uint    _closesToPredictionsAtTimestamp)
         payable
     {
-        // TODO: make this payable and
-        // TODO: give the owner a cut of the profits
         sponsorDepositWei = msg.value;
         owner = msg.sender;
         sponsor = _sponsor;
@@ -120,9 +116,8 @@ contract PredictionMarketQuestionBase is PausableByOwner() {
         constant //TODO: view
         returns (bool result)
     {
-        return ((now < closesToPredictionsAtTimestamp) && !resolved());
+        return ((currentTime() < closesToPredictionsAtTimestamp) && !resolved());
     }
-
 
     function resolve(Outcome _resolution)
         public
@@ -132,11 +127,12 @@ contract PredictionMarketQuestionBase is PausableByOwner() {
         require(!isOpenForPredictions() && !resolved());
         require(_resolution != Outcome.UNRESOLVED);
         assert(_resolution == Outcome.YES ||
-               _resolution == Outcome.NO ||
+               _resolution == Outcome.NO  ||
                _resolution == Outcome.UNDECIDEABLE);
 
-        // Prevent re-entry
         LogResolution(msg.sender, _resolution);
+
+        // Prevent re-entry
         resolution = _resolution;
 
         // Claims can be made up to one year from now
@@ -197,7 +193,7 @@ contract PredictionMarketQuestionBase is PausableByOwner() {
         require(isOpenForPredictions());
         require(_outcome != Outcome.UNRESOLVED);
         require(_outcome != Outcome.UNDECIDEABLE);
-        require(msg.value > MIN_STAKE_IN_WEI);
+        require(msg.value >= MIN_STAKE_IN_WEI);
         
         outcomes[uint8(_outcome)].predictions[msg.sender] += msg.value;
         outcomes[uint8(_outcome)].predictedWei += msg.value;
@@ -208,8 +204,9 @@ contract PredictionMarketQuestionBase is PausableByOwner() {
     function claimPayout(address predictor)
         public
         notWhilePaused
+        returns (uint)
     {
-        require(!isOpenForPredictions());
+        require(!isOpenForPredictions()); // TODO: add back in
         require(resolution != Outcome.UNRESOLVED);
         uint paidIn;
 
@@ -227,10 +224,17 @@ contract PredictionMarketQuestionBase is PausableByOwner() {
         // Scale the input amount to get an output amount, then pay it.
         // TODO: SafeMath        
         var payout = (paidIn * payoutMultiplierInBasisPoints) / ONE_HUNDRED_PERCENT_IN_BASIS_POINTS;
-        assert(payout <= paidIn);
+        assert(payout <= totalCollectedWei); // TODO: better assertions here
         predictor.transfer(payout);
-
         // TODO: event
+        return payout;
+    }
+
+    // We use this instead of now, to allow now to be mocked for testing
+    // by overriding this function.
+    // QUESTION: is there a better way?
+    function currentTime() returns (uint) {
+        return now;
     }
 
 
@@ -245,7 +249,7 @@ contract PredictionMarketQuestionBase is PausableByOwner() {
         var sendWei = payoutInWei[beneficiary];
         payoutInWei[beneficiary] = 0;
         beneficiary.transfer(sendWei);
-        // TODO: event
+        // TODO: event, perhaps return code
     }
     
     
@@ -267,7 +271,7 @@ contract PredictionMarketQuestionBase is PausableByOwner() {
     {
         require(!isOpenForPredictions());
         require(resolved());
-        require(now > ownerClaimsAllFundsTimestamp);
+        require(currentTime() > ownerClaimsAllFundsTimestamp);
         // TODO: event
         selfdestruct(sponsor);
     }
